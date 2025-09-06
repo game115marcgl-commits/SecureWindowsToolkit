@@ -1,40 +1,67 @@
-# czyszczenie_systemu.ps1
+# czyszczenie_systemu.ps1 - Wersja 2.0
 # Autor: Marcel, Elbląg 🇵🇱
 # Cel: Automatyczne czyszczenie systemu Windows z plików tymczasowych i śmieci
 
-Write-Host "🔧 Rozpoczynam czyszczenie systemu..." -ForegroundColor Cyan
+# --- Konfiguracja ---
+$logPath = "$env:USERPROFILE\Desktop\log_czyszczenia.txt"
 
-# Czyszczenie folderów tymczasowych
+# --- Funkcja do logowania ---
+function Write-Log {
+    param ($message)
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    Add-Content -Path $logPath -Value "[$timestamp] $message"
+}
+
+# --- Start ---
+Write-Host "🔧 Rozpoczynam czyszczenie systemu..." -ForegroundColor Cyan
+Write-Log "ROZPOCZĘTO CZYSZCZENIE SYSTEMU"
+
+# --- Czyszczenie folderów tymczasowych ---
 $tempFolders = @(
-    "$env:TEMP",
-    "$env:USERPROFILE\AppData\Local\Temp",
+    "$env:TEMP", # Ten i poniższy to często ten sam folder, ale upewniamy się
     "C:\Windows\Temp"
 )
 
 foreach ($folder in $tempFolders) {
     if (Test-Path $folder) {
         Write-Host "🧹 Czyszczenie: $folder"
-        Get-ChildItem -Path $folder -Recurse -Force -ErrorAction SilentlyContinue | Remove-Item -Force -Recurse -ErrorAction SilentlyContinue
+        Write-Log "Czyszczenie folderu: $folder"
+        try {
+            # Używamy zoptymalizowanej metody usuwania i łapiemy ewentualne błędy
+            Remove-Item -Path "$folder\*" -Recurse -Force -ErrorAction Stop
+        }
+        catch {
+            Write-Log "BŁĄD przy czyszczeniu $folder : $($_.Exception.Message)"
+        }
     }
 }
 
-# Opróżnianie kosza
+# --- Opróżnianie kosza ---
 Write-Host "🗑️ Opróżnianie kosza..."
-$shell = New-Object -ComObject Shell.Application
-$recycleBin = $shell.Namespace(0xA)
-$recycleBin.Items() | ForEach-Object { Remove-Item $_.Path -Force -Recurse -ErrorAction SilentlyContinue }
-
-# Czyszczenie folderu Prefetch
-$prefetch = "C:\Windows\Prefetch"
-if (Test-Path $prefetch) {
-    Write-Host "📦 Czyszczenie Prefetch..."
-    Get-ChildItem -Path $prefetch -Force | Remove-Item -Force -ErrorAction SilentlyContinue
+Write-Log "Opróżnianie kosza"
+try {
+    # Używamy nowoczesnego i prostego polecenia PowerShell
+    Clear-RecycleBin -Force -ErrorAction Stop
+}
+catch {
+    Write-Log "BŁĄD przy opróżnianiu kosza: $($_.Exception.Message)"
 }
 
-# Zapis logu
-$logPath = "$env:USERPROFILE\Desktop\log_czyszczenia.txt"
-$timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-Add-Content -Path $logPath -Value "[$timestamp] Wykonano czyszczenie systemu: foldery tymczasowe, kosz, Prefetch"
 
+# --- Czyszczenie folderu Prefetch ---
+$prefetchPath = "C:\Windows\Prefetch"
+if (Test-Path $prefetchPath) {
+    Write-Host "📦 Czyszczenie Prefetch..."
+    Write-Log "Czyszczenie folderu Prefetch"
+    try {
+        Remove-Item -Path "$prefetchPath\*" -Force -ErrorAction Stop
+    }
+    catch {
+        Write-Log "BŁĄD przy czyszczeniu Prefetch: $($_.Exception.Message)"
+    }
+}
+
+# --- Koniec ---
+Write-Log "ZAKOŃCZONO CZYSZCZENIE SYSTEMU"
 Write-Host "`n✅ Gotowe! System został oczyszczony." -ForegroundColor Green
-Write-Host "📄 Log zapisany na pulpicie: log_czyszczenia.txt"
+Write-Host "📄 Log zapisany na pulpicie: $logPath"
