@@ -1,0 +1,124 @@
+<#
+.SYNOPSIS
+    Główny moduł ("Jądro") dla projektu CopilotStation OS (SecureWindowsToolkit).
+    Zawiera zbiór kluczowych funkcji do zarządzania, czyszczenia i zabezpieczania systemu Windows.
+.AUTHOR
+    Marcel, Elbląg 🇵🇱
+#>
+
+# =============================================================================
+# SEKCJA 1: FUNKCJE POMOCNICZE
+# ... (bez zmian, zostawiamy funkcję Write-Log)
+function Write-Log {
+    param(
+        [string]$Message,
+        [string]$LogPath
+    )
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    Add-Content -Path $LogPath -Value "[$timestamp] $Message"
+}
+# =============================================================================
+
+
+# =============================================================================
+# SEKCJA 2: MODUŁ CZYSZCZENIA SYSTEMU
+# ... (bez zmian, zostawiamy funkcję Start-SystemCleanup)
+function Start-SystemCleanup {
+    $logPath = "$env:USERPROFILE\Desktop\log_czyszczenia.txt"
+    Write-Log -Message "ROZPOCZĘTO CZYSZCZENIE SYSTEMU" -LogPath $logPath
+    $tempFolders = @("$env:TEMP", "C:\Windows\Temp")
+    foreach ($folder in $tempFolders) {
+        if (Test-Path $folder) {
+            Write-Log -Message "Czyszczenie folderu: $folder" -LogPath $logPath
+            try { Remove-Item -Path "$folder\*" -Recurse -Force -ErrorAction Stop }
+            catch { Write-Log -Message "BŁĄD przy czyszczeniu $folder : $($_.Exception.Message)" -LogPath $logPath }
+        }
+    }
+    Write-Log -Message "Opróżnianie kosza" -LogPath $logPath
+    try { Clear-RecycleBin -Force -ErrorAction Stop }
+    catch { Write-Log -Message "BŁĄD przy opróżnianiu kosza: $($_.Exception.Message)" -LogPath $logPath }
+    $prefetchPath = "C:\Windows\Prefetch"
+    if (Test-Path $prefetchPath) {
+        Write-Log -Message "Czyszczenie folderu Prefetch" -LogPath $logPath
+        try { Remove-Item -Path "$prefetchPath\*" -Force -ErrorAction Stop }
+        catch { Write-Log -Message "BŁĄD przy czyszczeniu Prefetch: $($_.Exception.Message)" -LogPath $logPath }
+    }
+    Write-Log -Message "ZAKOŃCZONO CZYSZCZENIE SYSTEMU" -LogPath $logPath
+}
+# =============================================================================
+
+
+# =============================================================================
+# SEKCJA 3: MODUŁ ZARZĄDZANIA USŁUGAMI
+# ... (bez zmian, zostawiamy funkcję Start-ServiceHardening)
+function Start-ServiceHardening {
+    $logPath = "$env:USERPROFILE\Desktop\log_uslug.txt"
+    Write-Log -Message "ROZPOCZĘTO UTWARDZANIE USŁUG" -LogPath $logPath
+    $servicesToDisable = @("DiagTrack", "XblGameSave", "XboxNetApiSvc", "WMPNetworkSvc", "RetailDemo", "MapsBroker", "Fax", "RemoteRegistry")
+    foreach ($serviceName in $servicesToDisable) {
+        $service = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
+        if ($service) {
+            try {
+                Set-Service -Name $serviceName -StartupType Disabled -ErrorAction Stop
+                Stop-Service -Name $serviceName -Force -ErrorAction Stop
+                Write-Log -Message "Usługa '$($service.DisplayName)' ($serviceName): WYŁĄCZONA" -LogPath $logPath
+            } 
+            catch { Write-Log -Message "BŁĄD przy wyłączaniu usługi $serviceName: $($_.Exception.Message)" -LogPath $logPath }
+        } else { Write-Log -Message "Usługa $serviceName: NIE ZNALEZIONA" -LogPath $logPath }
+    }
+    Write-Log -Message "ZAKOŃCZONO UTWARDZANIE USŁUG" -LogPath $logPath
+}
+# =============================================================================
+
+
+# =============================================================================
+# SEKCJA 4: MODUŁ ZARZĄDZANIA PRYWATNOŚCIĄ (NOWA SEKCJA!)
+# =============================================================================
+
+function Set-TelemetryState {
+    <#
+    .SYNOPSIS
+        Włącza lub wyłącza kluczowe mechanizmy telemetrii w systemie Windows.
+    #>
+    param(
+        [Parameter(Mandatory=$true)]
+        [ValidateSet("Włącz", "Wyłącz")]
+        [string]$State
+    )
+
+    $logPath = "$env:USERPROFILE\Desktop\log_prywatnosci.txt"
+    Write-Log -Message "Rozpoczęto konfigurację telemetrii na stan: $State" -LogPath $logPath
+
+    # 1. Konfiguracja usługi 'DiagTrack' (Connected User Experiences and Telemetry)
+    $serviceName = "DiagTrack"
+    $service = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
+    if ($service) {
+        try {
+            if ($State -eq "Wyłącz") {
+                Set-Service -Name $serviceName -StartupType Disabled -ErrorAction Stop
+                Stop-Service -Name $serviceName -Force -ErrorAction Stop
+                Write-Log -Message "Usługa telemetrii ($serviceName) została WYŁĄCZONA." -LogPath $logPath
+            } else { # Włącz
+                Set-Service -Name $serviceName -StartupType Automatic -ErrorAction Stop
+                Start-Service -Name $serviceName -ErrorAction Stop
+                Write-Log -Message "Usługa telemetrii ($serviceName) została WŁĄCZONA." -LogPath $logPath
+            }
+        } catch {
+            Write-Log -Message "BŁĄD przy konfiguracji usługi $serviceName: $($_.Exception.Message)" -LogPath $logPath
+        }
+    }
+
+    # 2. Konfiguracja rejestru (blokada wysyłania danych)
+    $regPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection"
+    if (-not (Test-Path $regPath)) { New-Item -Path $regPath -Force | Out-Null }
+    
+    $regValue = if ($State -eq "Wyłącz") { 0 } else { 1 }
+    try {
+        Set-ItemProperty -Path $regPath -Name "AllowTelemetry" -Value $regValue -Type DWord -Force -ErrorAction Stop
+        Write-Log -Message "Polityka rejestru 'AllowTelemetry' ustawiona na '$regValue' ($State)." -LogPath $logPath
+    } catch {
+        Write-Log -Message "BŁĄD przy ustawianiu polityki rejestru 'AllowTelemetry': $($_.Exception.Message)" -LogPath $logPath
+    }
+
+    Write-Log -Message "Konfiguracja telemetrii zakończona." -LogPath $logPath
+}
