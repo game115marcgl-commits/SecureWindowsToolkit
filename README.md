@@ -6,6 +6,8 @@ jak uruchomić skrypt?  Jak uruchomić skrypt  Jak uruchomić skrypt czyszczenie
 - Zatwierdź uruchomienie, jeśli pojawi się ostrzeżenie systemowe
 - Po zakończeniu działania skryptu, sprawdź log czyszczenia zapisany na pulpicie (log_czyszczenia.txt)
   Skrypt usuwa tylko pliki tymczasowe, zawartość kosza i folderu Prefetch — nie rusza żadnych danych użytkownika.
+
+  
 Wymagania Systemowe
 SecureWindowsToolkit to narzędzie stworzone dla świadomych użytkowników, którzy cenią sobie bezpieczeństwo i nowoczesną architekturę systemu. Z tego powodu, zanim uruchomisz ten program, upewnij się, że Twój komputer jest odpowiednio skonfigurowany.
 Nasz wbudowany skrypt startowy (Start-SecureToolkit.ps1) automatycznie zweryfikuje, czy Twój system spełnia poniższe, obowiązkowe wymagania. Jeśli którekolwiek z nich nie zostanie spełnione, program nie uruchomi się i wyświetli odpowiedni komunikat.
