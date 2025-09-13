@@ -21,7 +21,20 @@ $outputBox.Multiline = $true
 $outputBox.ScrollBars = "Vertical"
 $outputBox.ReadOnly = $true
 $outputBox.Text = "Witaj w SecureWindowsToolkit! Wybierz operację."
+# --- Przycisk: Sprawdź plik w VirusTotal ---
+$btnVirusTotal = New-Object System.Windows.Forms.Button
+$btnVirusTotal.Text = "Sprawdź plik w VirusTotal"
+$btnVirusTotal.Location = New-Object System.Drawing.Point(10, 220) # Ustaw odpowiednią pozycję
+$btnVirusTotal.Size = New-Object System.Drawing.Size(360, 30)
 
+# Logika przycisku:
+$btnVirusTotal.Add_Click({
+    # Uruchamia domyślną przeglądarkę i otwiera stronę
+    Start-Process "https://www.virustotal.com/"
+})
+
+# Nie zapomnij dodać go do formatki!
+$form.Controls.Add($btnVirusTotal)
 # --- Przycisk: Czyszczenie systemu ---
 $btnClean = New-Object System.Windows.Forms.Button
 $btnClean.Text = "🧹 Wyczyść system"
